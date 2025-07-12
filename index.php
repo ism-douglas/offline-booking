@@ -1,4 +1,9 @@
 <?php
+require 'vendor/autoload.php';
+require 'db.php';
+require 'mpesa.php';
+require 'utils.php';
+
 $sessionId   = $_POST["sessionId"];
 $serviceCode = $_POST["serviceCode"];
 $phoneNumber = $_POST["phoneNumber"];
@@ -6,7 +11,7 @@ $text        = $_POST["text"];
 
 $response = "";
 $level = explode("*", $text);
-$menu = isset($level[0]) ? $level[0] : "";
+$menu  = $level[0] ?? "";
 
 if ($text == "") {
     $response = "CON Welcome to JengaBookings\n";
@@ -23,34 +28,24 @@ else if ($menu == "1") {
         $response .= "2. Service 2 - KES 5\n";
         $response .= "3. Service 3 - KES 10";
     } else {
-        $service = $level[1];
-        switch ($service) {
-            case "1":
-                $response = "END You selected Service 1. You’ll receive an SMS with payment instructions for KES 2.";
-                break;
-            case "2":
-                $response = "END You selected Service 2. You’ll receive an SMS with payment instructions for KES 5.";
-                break;
-            case "3":
-                $response = "END You selected Service 3. You’ll receive an SMS with payment instructions for KES 10.";
-                break;
-            default:
-                $response = "END Invalid service choice.";
+        $services = [
+            "1" => ["Service 1", 2],
+            "2" => ["Service 2", 5],
+            "3" => ["Service 3", 10]
+        ];
+        if (array_key_exists($level[1], $services)) {
+            [$serviceName, $amount] = $services[$level[1]];
+            sendSTKPush($phoneNumber, $amount);
+            recordConsultancyPayment($conn, $phoneNumber, $serviceName, $amount);
+            $response = "END STK Push sent for $serviceName. Check your phone to complete payment.";
+        } else {
+            $response = "END Invalid selection.";
         }
-
-        // 🔔 TODO: Add code here to trigger M-Pesa payment push or send SMS via API
     }
 }
 
-// Other menus (Events, Parking, Travel)
-else if ($menu == "2") {
-    $response = "END Event ticketing coming soon!";
-} else if ($menu == "3") {
-    $response = "END Parking reservation not yet active.";
-} else if ($menu == "4") {
-    $response = "END Travel bookings will open next week.";
-} else {
-    $response = "END Invalid choice. Try again.";
+else {
+    $response = "END Feature coming soon.";
 }
 
 header('Content-type: text/plain');
